@@ -1,0 +1,16 @@
+---
+applications:
+- name: github-mcp-server
+  memory: 512M
+  instances: 1
+  buildpacks:
+    - go_buildpack
+  env:
+    GITHUB_PERSONAL_ACCESS_TOKEN: ((github-token))
+    GITHUB_HOST: https://github.com
+    GITHUB_TOOLSETS: repos,issues,pull_requests,users,code_security,secret_protection,notifications
+    GITHUB_READ_ONLY: false
+    GITHUB_ENABLE_COMMAND_LOGGING: true
+    GO_INSTALL_PACKAGE_SPEC: ./cmd/github-mcp-server
+  health-check-type: http
+  health-check-http-endpoint: /health

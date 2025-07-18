@@ -1,0 +1,1 @@
+web: github-mcp-server sse
