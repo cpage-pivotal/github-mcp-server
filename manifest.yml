@@ -1,16 +1,42 @@
+# manifest.yml - Most Likely Fix
 ---
 applications:
-- name: github-mcp-server
-  memory: 512M
-  instances: 1
-  buildpacks:
-    - go_buildpack
-  env:
-    GITHUB_PERSONAL_ACCESS_TOKEN: ((github-token))
-    GITHUB_HOST: https://github.com
-    GITHUB_TOOLSETS: repos,issues,pull_requests,users,code_security,secret_protection,notifications
-    GITHUB_READ_ONLY: false
-    GITHUB_ENABLE_COMMAND_LOGGING: true
-    GO_INSTALL_PACKAGE_SPEC: ./cmd/github-mcp-server
-  health-check-type: http
-  health-check-http-endpoint: /health
+  - name: github-mcp-server-sse
+    memory: 512M
+    disk_quota: 1G
+    instances: 2
+    stack: cflinuxfs4
+    buildpacks:
+      - go_buildpack
+
+    env:
+      # Server configuration
+      VERSION: "1.0.0"
+
+      # GitHub configuration
+      GITHUB_HOST: "github.com"
+      GITHUB_ALLOW_UNAUTHENTICATED: "false"
+
+      # Tool configuration
+      GITHUB_TOOLSETS: "repos,issues,pulls,search,users"
+      GITHUB_DYNAMIC_TOOLSETS: "true"
+      GITHUB_READ_ONLY: "false"
+
+      # Go build configuration
+      GOVERSION: "go1.23.7"
+
+    # Health check configuration
+    health-check-type: http
+    health-check-http-endpoint: /health
+    health-check-invocation-timeout: 10
+    health-check-timeout: 180
+
+    # FIXED: Use binary name without ./ prefix
+    processes:
+      - type: web
+        command: github-mcp-server sse --allow-unauthenticated=false
+        memory: 512M
+        disk_quota: 1G
+        health-check-type: http
+        health-check-http-endpoint: /health
+        timeout: 60

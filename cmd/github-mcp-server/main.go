@@ -19,9 +19,9 @@ var date = "date"
 
 var (
 	rootCmd = &cobra.Command{
-		Use:     "server",
+		Use:     "github-mcp-server",
 		Short:   "GitHub MCP Server",
-		Long:    `A GitHub MCP server that handles various tools and resources.`,
+		Long:    `A GitHub MCP server that handles various tools and resources with authentication support.`,
 		Version: fmt.Sprintf("Version: %s\nCommit: %s\nBuild Date: %s", version, commit, date),
 	}
 
@@ -62,12 +62,16 @@ var (
 
 	sseCmd = &cobra.Command{
 		Use:   "sse",
-		Short: "Start SSE server",
-		Long:  `Start a server that communicates via Server-Sent Events over HTTP.`,
+		Short: "Start SSE server with optional authentication support",
+		Long:  `Start a server that communicates via Server-Sent Events over HTTP with optional authentication from gateway headers.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			token := viper.GetString("personal_access_token")
 			if token == "" {
-				return errors.New("GITHUB_PERSONAL_ACCESS_TOKEN not set")
+				// Check if authentication will be required
+				allowUnauthenticated := viper.GetBool("allow_unauthenticated")
+				if !allowUnauthenticated {
+					fmt.Fprintf(os.Stderr, "Warning: No GITHUB_PERSONAL_ACCESS_TOKEN set and authentication required. Server will rely on gateway headers.\n")
+				}
 			}
 
 			var enabledToolsets []string
@@ -80,6 +84,7 @@ var (
 				port = "8080"
 			}
 
+			// Use the existing SSEServerConfig structure
 			sseServerConfig := ghmcp.SSEServerConfig{
 				Version:              version,
 				Host:                 viper.GetString("host"),
@@ -97,7 +102,9 @@ var (
 				KeepAliveInterval:    30 * time.Second,
 			}
 
-			return ghmcp.RunSSEServer(sseServerConfig)
+			// Use the new authentication-aware SSE server instead of the original
+			allowUnauthenticated := viper.GetBool("allow_unauthenticated")
+			return ghmcp.RunSSEServerWithSimpleAuth(sseServerConfig, allowUnauthenticated)
 		},
 	}
 )
@@ -127,8 +134,10 @@ func init() {
 
 	// Add SSE-specific flags
 	sseCmd.Flags().String("base-url", "", "Base URL for the SSE server")
+	sseCmd.Flags().Bool("allow-unauthenticated", false, "Allow unauthenticated requests (for testing)")
 
 	_ = viper.BindPFlag("base-url", sseCmd.Flags().Lookup("base-url"))
+	_ = viper.BindPFlag("allow_unauthenticated", sseCmd.Flags().Lookup("allow-unauthenticated"))
 
 	// Add subcommands
 	rootCmd.AddCommand(stdioCmd)
